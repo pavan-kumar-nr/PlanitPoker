@@ -434,7 +434,7 @@ const loadActiveTicket =
 
         <div className="space-y-4">
 
-          <div className="rounded-2xl border border-slate-700 bg-linear-to-r from-purple-900 to-purple-600 p-3 h-120 flex flex-col">
+          <div className="rounded-2xl border border-slate-700 bg-linear-to-r from-purple-900 to-purple-600 p-3 h-full flex flex-col">
             <div className="relative mb-4">
               <h2 className="text-3xl font-semibold text-white text-center">
                 Active Ticket
