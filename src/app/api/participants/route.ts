@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { supabase } from "../../../lib/supabase";
 
-export async function POST(request: Request) {
-  const body = await request.json();
+export async function POST(
+  request: Request
+) {
+  const body =
+    await request.json();
 
   const {
     sessionId,
@@ -11,28 +14,33 @@ export async function POST(request: Request) {
     clientId,
   } = body;
 
-  const { data, error } =
-    await supabase
-      .from("participants")
-      .upsert(
-        {
-          session_id: sessionId,
-          name,
-          role,
-          client_id: clientId,
-        },
-        {
-          onConflict:
-            "session_id,client_id",
-        }
-      )
-      .select()
-      .single();
+  const {
+    data,
+    error,
+  } = await supabase
+    .from("participants")
+    .upsert(
+      {
+        session_id:
+          sessionId,
+        name,
+        role,
+        client_id:
+          clientId,
+      },
+      {
+        onConflict:
+          "session_id,client_id",
+      }
+    )
+    .select()
+    .single();
 
   if (error) {
     return NextResponse.json(
       {
-        error: error.message,
+        error:
+          error.message,
       },
       {
         status: 500,
@@ -40,7 +48,9 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json(data);
+  return NextResponse.json(
+    data
+  );
 }
 
 export async function GET(
@@ -82,7 +92,8 @@ export async function GET(
   if (error) {
     return NextResponse.json(
       {
-        error: error.message,
+        error:
+          error.message,
       },
       {
         status: 500,
@@ -141,17 +152,22 @@ export async function GET(
 
         return {
           ...participant,
+
           hasVoted:
             !!vote,
+
           voteValue:
-            ticket?vote?.vote_value ??
+            ticket?.votes_revealed
+              ? vote?.vote_value ??
                 null
               : null,
+
+          currentVote:
+            vote?.vote_value ??
+            null,
         };
       }
-      
     );
-    
 
   return NextResponse.json(
     enriched
