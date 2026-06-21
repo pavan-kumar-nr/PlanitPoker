@@ -89,8 +89,13 @@ export default function BoardClient({
         }
       );
 
-      await loadActiveTicket();
-      await loadHistory();
+    setMyVote(null);
+    setFinalEstimate("");
+    setActiveTicket(null);
+
+    await loadActiveTicket();
+    await loadParticipants();
+    await loadHistory();
 
     } catch (error) {
       console.error(error);
@@ -179,7 +184,7 @@ const loadActiveTicket =
       await statsResponse.json();
 
     setStats(statsData);
-  }, [session.id]);
+  }, [session.id, activeTicket]);
 
   const loadHistory =
     useCallback(async () => {
@@ -285,6 +290,7 @@ const loadActiveTicket =
 
       setMyVote(null);
       setFinalEstimate("");
+      setActiveTicket(null);
 
       await loadActiveTicket();
       await loadParticipants();
