@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import CreateTicketForm from "../../../../components/ticket/CreateTicketForm";
 import VotingCards from "../../../../components/VotingCards";
+import { supabaseClient } from "../../../../lib/supabaseClient";
 
 type Participant = {
   id: string;
@@ -10,6 +11,7 @@ type Participant = {
   role: string;
   hasVoted?: boolean;
   voteValue?: string | null;
+  currentVote?: string | null;
 };
 
 type Ticket = {
@@ -28,6 +30,7 @@ type Session = {
   room_code: string;
   voting_type: string;
   creator_name: string | null;
+  created_by: string | null;
 };
 
 type TicketStats = {
@@ -60,19 +63,40 @@ export default function BoardClient({
     useState("");
 
   const [showCreateTicket, setShowCreateTicket] = useState(false);
-  const [showResults, setShowResults] = useState(false);
+  const showResults = activeTicket?.votes_revealed ?? false;
+  const [userId, setUserId] = useState("");
   
-
-    <button
-    onClick={() =>
-      setShowCreateTicket(true)
+  const completeTicket = async () => {
+    if (!activeTicket) {
+      return;
     }
-    className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-sm font-semibold"
-  >
-    + Create Ticket
-  </button>
-  
 
+    try {
+      await fetch(
+        "/api/tickets/finalize",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            ticketId:
+              activeTicket.id,
+            finalEstimate:
+              null,
+          }),
+        }
+      );
+
+      await loadActiveTicket();
+      await loadHistory();
+
+    } catch (error) {
+      console.error(error);
+    }
+  };
+  
   const participantId =
     globalThis?.localStorage?.getItem(
       "participant-id"
@@ -89,8 +113,7 @@ export default function BoardClient({
     ) ?? "";
 
   const isCreator =
-    participantRole === "CREATOR" ||
-    participantName === session.creator_name;
+    userId === session.created_by;
 
   const canVote =
     participantRole === "VOTER";
@@ -100,12 +123,28 @@ export default function BoardClient({
       const response = await fetch(
         `/api/participants?sessionId=${session.id}`
       );
-
       const data =
         await response.json();
 
       setParticipants(data || []);
-    }, [session.id]);
+
+      const me =
+        data?.find(
+          (
+            participant: Participant
+          ) =>
+            participant.id ===
+            participantId
+        );
+
+      if (
+        me?.currentVote
+      ) {
+        setMyVote(
+          me.currentVote
+        );
+      }
+    }, [session.id, participantId]);
 
 const loadActiveTicket =
   useCallback(async () => {
@@ -253,6 +292,12 @@ const loadActiveTicket =
 
   useEffect(() => {
     async function loadData() {
+      await fetch(
+        `/api/sessions/${session.id}/access`,
+        {
+          method: "POST",
+        }
+      );
       await loadParticipants();
       await loadActiveTicket();
       await loadHistory();
@@ -263,7 +308,21 @@ const loadActiveTicket =
     loadParticipants,
     loadActiveTicket,
     loadHistory,
+    session.id,
   ]);
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { user },
+      } =
+        await supabaseClient.auth.getUser();
+
+      setUserId(user?.id ?? "");
+    }
+
+    loadUser();
+  }, []);
 
   useEffect(() => {
     const interval =
@@ -375,15 +434,13 @@ const loadActiveTicket =
 
         <div className="space-y-4">
 
-          <div className="rounded-2xl border border-slate-700 bg-linear-to-r from-purple-900 to-purple-600 p-3 h-full flex flex-col">
+          <div className="rounded-2xl border border-slate-700 bg-linear-to-r from-purple-900 to-purple-600 p-3 h-120 flex flex-col">
             <div className="relative mb-4">
               <h2 className="text-3xl font-semibold text-white text-center">
                 Active Ticket
               </h2>
 
-{participantName &&
-  isCreator &&
-  !activeTicket && (
+             {participantName && isCreator && !activeTicket && (
                 <button
                   onClick={() =>
                     setShowCreateTicket(
@@ -406,7 +463,9 @@ const loadActiveTicket =
                 >
                   + Create Ticket
                 </button>
+                
               )}
+
               {showCreateTicket && (
                 <div
                   className="
@@ -464,12 +523,16 @@ const loadActiveTicket =
                   </div>
                 </div>
               )}
+
             </div>
             {!activeTicket ? (
               <div className="flex flex-col items-center justify-center h-full">
 
                 <div className="text-slate-300 text-lg mb-6">
-                  No Active Ticket
+                  there is no active ticket.{" "}
+                  {isCreator
+                    ? "Create one to get started!"
+                    : "Waiting for session creator to create a ticket."}  
                 </div>
 
                 {showCreateTicket && (
@@ -488,23 +551,45 @@ const loadActiveTicket =
             ) : (
               <>
                 <div className="my-4 border-t border-slate-500/90"></div>
-                <div className="text-2xl text-white font-semibold">
-                  {
-                    activeTicket.ticket_key
-                  }
-                </div>
+                                  
+                  <div className="flex justify-between gap-4">
 
-                <div className="text-1xl font-bold mt-1 text-white">
-                  {
-                    activeTicket.title
-                  }
-                </div>
+                    <div>
+                      <div className="text-2xl text-white font-semibold">
+                        {activeTicket.ticket_key}
+                      </div>
 
-                <div className="mt-1 text-slate-200">
-                  {
-                    activeTicket.description
-                  }
-                </div>
+                      <div className="text-xl font-bold mt-1 text-white">
+                        {activeTicket.title}
+                      </div>
+
+                      <div className="mt-1 text-slate-200">
+                        {activeTicket.description}
+                      </div>
+                    </div>
+
+                    {isCreator && !showResults && (
+                      <div className="flex items-center">
+                        <button
+                          onClick={completeTicket}
+                          className="
+                            rounded-xl
+                            bg-cyan-900
+                            hover:bg-blue-900
+                            px-6
+                            py-3
+                            text-sm
+                            font-semibold
+                            whitespace-nowrap
+                          "
+                        >
+                          withdraw ticket
+                        </button>
+                      </div>
+                    )}
+
+                  </div>
+
                 {activeTicket && (
                   <div className="mt-8 border-t border-slate-500/90 pt-6">
                     <h3 className="text-lg font-semibold mb-4 text-white">
@@ -518,40 +603,6 @@ const loadActiveTicket =
                           disabled={activeTicket.votes_revealed}
                           onVote={submitVote}
                         />
-                        <div className="mt-8 border-t border-slate-500/50 pt-5">
-                        <h3 className="text-lg font-semibold mb-4">
-                          Selected Votes
-                        </h3>
-
-                        <div className="flex flex-wrap gap-3">
-                          {participants
-                            .filter(
-                              (participant) =>
-                                participant.voteValue
-                            )
-                            .map((participant) => (
-                              <div
-                                key={participant.id}
-                                className="
-                                  min-w-22.5
-                                  rounded-xl
-                                  bg-slate-900
-                                  px-4
-                                  py-3
-                                  text-center
-                                "
-                              >
-                                <div className="text-xs text-slate-400">
-                                  {participant.name}
-                                </div>
-
-                                <div className="text-2xl font-bold text-indigo-400">
-                                  {participant.voteValue}
-                                </div>
-                              </div>
-                            ))}
-                        </div>
-                      </div>
 
                         {myVote && (
                           <div className="mt-5 rounded-xl bg-emerald-900/30 border border-emerald-700 p-4">
@@ -569,6 +620,7 @@ const loadActiveTicket =
                         👀Spectators cannot vote.
                       </div>
                     )}
+
                     {!canVote && isCreator && (
                       <div className="text-slate-300">
                       <p>👀Voting started. You cannot vote as the session creator.</p>
@@ -599,7 +651,7 @@ const loadActiveTicket =
 
             <div className="text-center mb-4">
               <div className="text-xl font-bold text-white">
-                👻 {session.creator_name}
+                {session.creator_name}
               </div>
               <div className="text-sm font-semibold text-yellow-400 mt-1">
                 Session Creator
@@ -611,10 +663,11 @@ const loadActiveTicket =
               </h2>
               <div className="space-y-2 max-h-65 overflow-y-auto">
 
-                {participants.map(
-                  (
-                    participant
-                  ) => (
+                {participants.filter(
+                    (participant) =>
+                      participant.role !==
+                      "CREATOR"
+                  ).map((participant) => (
                     <div
                       key={
                         participant.id
@@ -653,7 +706,7 @@ const loadActiveTicket =
                           </span>
                         ) : (
                           <span className="text-yellow-400">
-                            ⏳Waiting
+                            ⏳ Waiting
                           </span>
                         )}
 
@@ -664,21 +717,36 @@ const loadActiveTicket =
 
               </div>
 
-              {isCreator &&
-                activeTicket && (
-                <button
-                  onClick={() =>
-                    setShowResults(
-                      !showResults
-                    )
-                  }
-                  className="w-full mt-5 rounded-xl bg-orange-600 hover:bg-orange-700 px-4 py-3 font-semibold"
-                >
-                  {showResults
-                    ? "Hide Results"
-                    : "Reveal Votes"}
-                </button>
-              )}
+                {isCreator &&
+                  activeTicket && (
+                  <button
+                    onClick={async () => {
+                      await fetch(
+                        "/api/tickets/reveal",
+                        {
+                          method: "POST",
+                          headers: {
+                            "Content-Type":
+                              "application/json",
+                          },
+                          body: JSON.stringify({
+                            ticketId:
+                              activeTicket.id,
+                          }),
+                        }
+                      );
+
+                      await loadActiveTicket();
+                      await loadParticipants();
+                    }}
+                    disabled={showResults}
+                    className="w-full mt-5 rounded-xl bg-orange-600 hover:bg-orange-700 disabled:bg-slate-600 px-4 py-3 font-semibold"
+                  >
+                    {showResults
+                      ? "Votes Revealed"
+                      : "Reveal Votes"}
+                  </button>
+                )}
                 {activeTicket &&
                   stats &&
                   showResults && (

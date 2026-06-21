@@ -1,18 +1,44 @@
 "use client";
+import { User } from "@supabase/supabase-js";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabaseClient } from "../lib/supabaseClient";
 
 export default function Home() {
   const router = useRouter();
 
-  const [projectName, setProjectName] = useState("");
-  const [creatorName, setCreatorName] = useState("");
-  const [roomCode, setRoomCode] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [projectName, setProjectName] =
+    useState("");
+
+  const [roomCode, setRoomCode] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+const [user, setUser] = useState<User | null>(null);
 
   const [votingType, setVotingType] =
     useState("fibonacci");
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { user },
+      } =
+        await supabaseClient.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      setUser(user);
+    }
+
+    loadUser();
+  }, [router]);
 
   async function createSession() {
     if (!projectName.trim()) {
@@ -20,8 +46,8 @@ export default function Home() {
       return;
     }
 
-    if (!creatorName.trim()) {
-      alert("Please enter creator name");
+    if (!user) {
+      alert("Please login");
       return;
     }
 
@@ -37,9 +63,12 @@ export default function Home() {
               "application/json",
           },
           body: JSON.stringify({
-            name: projectName,
-            creatorName,
+            name: projectName.toUpperCase(),
+            creatorName:
+              user.email,
             votingType,
+            createdBy:
+              user.id,
           }),
         }
       );
@@ -49,7 +78,7 @@ export default function Home() {
 
       localStorage.setItem(
         "participant-name",
-        creatorName
+        user.email ?? ""
       );
 
       localStorage.setItem(
@@ -62,12 +91,19 @@ export default function Home() {
       );
     } catch (error) {
       console.error(error);
+
       alert(
         "Failed to create session"
       );
     } finally {
       setLoading(false);
     }
+  }
+
+  async function logout() {
+    await supabaseClient.auth.signOut();
+
+    router.push("/login");
   }
 
   function joinRoom() {
@@ -83,19 +119,51 @@ export default function Home() {
     );
   }
 
+  if (!user) {
+    return (
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+        Loading...
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
+
       <div className="max-w-6xl mx-auto px-6 py-16">
 
-        <div className="text-center mb-14">
-          <h1 className="text-5xl font-bold mb-4">
-            Planit Poker
-          </h1>
+        <div className="flex justify-between items-center mb-10">
 
-          <p className="text-slate-400">
-            Agile Planning Poker for
-            modern teams
-          </p>
+          <div>
+            <h1 className="text-5xl font-bold mb-2">
+              Planit Poker
+            </h1>
+
+            <p className="text-slate-400">
+              {user.email}
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+
+            <button
+              onClick={() =>
+                router.push("/rooms")
+              }
+              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-3 font-semibold"
+            >
+              My Rooms
+            </button>
+
+            <button
+              onClick={logout}
+              className="rounded-xl bg-red-600 hover:bg-red-700 px-5 py-3 font-semibold"
+            >
+              Logout
+            </button>
+
+          </div>
+
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
@@ -103,7 +171,7 @@ export default function Home() {
           <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
 
             <h2 className="text-2xl font-semibold mb-6">
-              Create ProjectSession
+              Create Session
             </h2>
 
             <input
@@ -117,16 +185,11 @@ export default function Home() {
               className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-4"
             />
 
-            <input
-              value={creatorName}
-              onChange={(e) =>
-                setCreatorName(
-                  e.target.value
-                )
-              }
-              placeholder="Your Name"
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-4"
-            />
+            <div className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-4 text-slate-300">
+              Creator:
+              {" "}
+              {user.email}
+            </div>
 
             <select
               value={votingType}
@@ -154,12 +217,13 @@ export default function Home() {
             <button
               onClick={createSession}
               disabled={loading}
-              className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 transition-all px-4 py-3 font-semibold"
+              className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-3 font-semibold"
             >
               {loading
                 ? "Creating..."
                 : "Create Session"}
             </button>
+
           </div>
 
           <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
@@ -181,14 +245,17 @@ export default function Home() {
 
             <button
               onClick={joinRoom}
-              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 transition-all px-4 py-3 font-semibold"
+              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-3 font-semibold"
             >
               Join Room
             </button>
+
           </div>
 
         </div>
+
       </div>
+
     </main>
   );
 }
