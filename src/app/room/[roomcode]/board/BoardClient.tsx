@@ -63,7 +63,7 @@ export default function BoardClient({
     useState("");
 
   const [showCreateTicket, setShowCreateTicket] = useState(false);
-  const showResults = activeTicket?.votes_revealed ?? false;
+  const [showResults, setShowResults] = useState(activeTicket?.votes_revealed ?? false);
   const [userId, setUserId] = useState("");
   
   const completeTicket = async () => {
@@ -155,12 +155,20 @@ const loadActiveTicket =
     const data =
       await response.json();
 
-    setActiveTicket(data);
-
-    if (!data) {
-      setStats(null);
-      return;
-    }
+      if (!data) {
+        setMyVote(null);
+        setStats(null);
+        return;
+      }
+      if (
+        data &&
+        activeTicket &&
+        data.id !== activeTicket.id
+      ) {
+        setMyVote(null);
+        setShowResults(false);
+        setFinalEstimate("");
+      }
 
     const statsResponse =
       await fetch(
