@@ -62,6 +62,7 @@ export default function BoardClient({
 
   const [finalEstimate, setFinalEstimate] =
     useState("");
+  const [  estimateError, setEstimateError,] = useState("");
   const [copied, setCopied] =
     useState(false);
 
@@ -104,13 +105,15 @@ export default function BoardClient({
         }
       );
 
-    setMyVote(null);
-    setFinalEstimate("");
-    setActiveTicket(null);
+      setMyVote(null);
+      setFinalEstimate("");
+      setShowResults(false);
+      setStats(null);
+      setActiveTicket(null);
 
-    await loadActiveTicket();
-    await loadParticipants();
-    await loadHistory();
+      await loadParticipants();
+      await loadHistory();
+      await loadActiveTicket();
 
     } catch (error) {
       console.error(error);
@@ -175,11 +178,14 @@ const loadActiveTicket =
     const data =
       await response.json();
 
-      if (!data) {
-        setMyVote(null);
-        setStats(null);
-        return;
-      }
+    if (!data) {
+      setActiveTicket(null);
+      setShowResults(false);
+      setMyVote(null);
+      setStats(null);
+      setFinalEstimate("");
+      return;
+    }
       if (
         data &&
         activeTicket &&
@@ -274,7 +280,46 @@ const loadActiveTicket =
       ]
     );
 
-      const finalizeTicket =
+  const [ticketToDelete, setTicketToDelete] =
+    useState<string | null>(null);
+
+  const handleDelete = (
+    ticketId: string
+  ) => {
+    setTicketToDelete(ticketId);
+  };
+
+  const confirmDelete =
+  async () => {
+    if (!ticketToDelete)
+      return;
+
+    await fetch(
+      "/api/tickets/delete",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          ticketId:
+            ticketToDelete,
+        }),
+      }
+    );
+
+    setTicketToDelete(null);
+
+    await loadHistory();
+
+    if (activeTicket?.id === ticketToDelete) {
+      await loadActiveTicket();
+      await loadParticipants();
+    }
+  };
+
+  const finalizeTicket =
     useCallback(async () => {
       if (
         !activeTicket ||
@@ -284,11 +329,13 @@ const loadActiveTicket =
       }
 
       if (!finalEstimate) {
-        alert(
-          "Please select final estimate"
+        setEstimateError(
+          "Select a final estimate"
         );
         return;
       }
+
+      setEstimateError("");
 
       await fetch(
         "/api/tickets/finalize",
@@ -308,11 +355,15 @@ const loadActiveTicket =
 
       setMyVote(null);
       setFinalEstimate("");
+      setShowResults(false);
+      setStats(null);
       setActiveTicket(null);
 
-      await loadActiveTicket();
-      await loadParticipants();
-      await loadHistory();
+      await Promise.all([
+        loadActiveTicket(),
+        loadParticipants(),
+        loadHistory(),
+      ]);
     }, [
       activeTicket,
       finalEstimate,
@@ -415,36 +466,6 @@ const loadActiveTicket =
           "XL",
         ];
 
-const handleDelete =
-  async (
-    ticketId: string
-  ) => {
-    const confirmed =
-      window.confirm(
-        "Delete this ticket?"
-      );
-
-    if (!confirmed) {
-      return;
-    }
-
-    await fetch(
-      "/api/tickets/delete",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify({
-          ticketId,
-        }),
-      }
-    );
-
-    await loadHistory();
-  };
-
 const handleEdit =
   (
     ticket: Ticket
@@ -525,9 +546,18 @@ return (
                 );
                 setCopied(true);
 
-                setTimeout(() => {
-                  setCopied(false);
-                }, 1000);
+                window.clearTimeout(
+                  (window as typeof window & {
+                    copyTimer?: number;
+                  }).copyTimer
+                );
+
+                (window as typeof window & {
+                  copyTimer?: number;
+                }).copyTimer =
+                  window.setTimeout(() => {
+                    setCopied(false);
+                  }, 1000);
               }}
               className="flex items-center gap-2 rounded-xl bg-gray-200 hover:bg-gray-400 px-5 py-2 text-black font-semibold transition-all"
             >
@@ -784,7 +814,6 @@ return (
                             participant.name
                           }
                         </div>
-
                         <div className="text-xs text-slate-400">
                           {
                             participant.role
@@ -818,11 +847,10 @@ return (
                     </div>
                   )
                 )}
-
               </div>
-
+              
                 {isCreator &&
-                  activeTicket && (
+                  activeTicket &&(
                   <button
                     onClick={async () => {
                       await fetch(
@@ -913,7 +941,13 @@ return (
                               </option>
                             ))}
                           </select>
-
+                              {
+                                estimateError && (
+                                  <p className="mt-2 text-red-400 text-sm">
+                                    {estimateError}
+                                  </p>
+                                )
+                              }
                           <button
                             onClick={finalizeTicket}
                             className="w-full rounded-xl text-white bg-green-600 hover:bg-green-700 px-5 py-3 font-semibold"
@@ -938,7 +972,7 @@ return (
 
         {history.length ===
         0 ? (
-          <div className="text-black">
+          <div className="text-gray-300">
             No completed tickets
           </div>
         ) : (
@@ -968,31 +1002,35 @@ return (
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3">
 
-                    <div className="rounded-lg bg-indigo-600 px-4 py-1 font-semibold text-white">
-                      {ticket.final_estimate ?? "-"}
+                      <div className="rounded-lg bg-indigo-600 px-4 py-1 font-semibold text-white">
+                        {ticket.final_estimate ?? "-"}
+                      </div>
+                      {isCreator && (
+                        <div>
+                          <button
+                            onClick={() =>
+                              handleEdit(ticket)
+                            }
+                            className="text-black px-4"
+                          >
+                            <FiEdit2 size={18} />
+                          </button>
+
+                          <button
+                            onClick={() =>
+                              handleDelete(ticket.id)
+                            }
+                            className="text-black px-4"
+                          >
+                            <FiTrash2 size={18} />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
-                    <button
-                      onClick={() =>
-                        handleEdit(ticket)
-                      }
-                      className="text-black px-4"
-                    >
-                      <FiEdit2 size={18} />
-                    </button>
 
-                    <button
-                      onClick={() =>
-                        handleDelete(ticket.id)
-                      }
-                      className="text-black px-4"
-                    >
-                      <FiTrash2 size={18} />
-                    </button>
-
-                  </div>
                 </div>
               )
             )}
@@ -1001,7 +1039,83 @@ return (
         )}
 
       </div>
-      
+      {ticketToDelete && (
+        <div
+          className="
+            fixed inset-0
+            bg-black/60
+            flex items-center justify-center
+            z-50
+          "
+        >
+          <div
+            className="
+              bg-white
+              rounded-3xl
+              p-6
+              w-[90%]
+              max-w-md
+            "
+          >
+            <h2
+              className="
+                text-xl
+                font-bold
+                mb-3
+              "
+            >
+              Delete Ticket
+            </h2>
+
+            <p
+              className="
+                text-slate-600
+                mb-6
+              "
+            >
+              Are you sure you want to
+              delete this ticket?
+            </p>
+
+            <div
+              className="
+                flex
+                justify-end
+                gap-3
+              "
+            >
+              <button
+                onClick={() =>
+                  setTicketToDelete(
+                    null
+                  )
+                }
+                className="
+                  px-4 py-2
+                  rounded-xl
+                  bg-slate-200
+                "
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={
+                  confirmDelete
+                }
+                className="
+                  px-4 py-2
+                  rounded-xl
+                  bg-red-600
+                  text-white
+                "
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {
         editingTicket && (
           <div
@@ -1039,6 +1153,7 @@ return (
                     e.target.value
                   )
                 }
+                placeholder="enter estimate"
                 className="
                   w-full
                   border
@@ -1087,6 +1202,7 @@ return (
           </div>
         )
       }
+      
     </div>
   );
 }
