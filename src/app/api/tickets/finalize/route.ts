@@ -72,8 +72,7 @@ export async function POST(
   } = await supabase
     .from("sessions")
     .update({
-      active_ticket_id:
-        null,
+      active_ticket_id: null,
     })
     .eq(
       "id",
