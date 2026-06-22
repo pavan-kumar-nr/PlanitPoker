@@ -1,6 +1,7 @@
 "use client";
-
+import { FiShare2 } from "react-icons/fi";
 import { useCallback, useEffect, useState } from "react";
+import { FiEdit2, FiTrash2,} from "react-icons/fi";
 import CreateTicketForm from "../../../../components/ticket/CreateTicketForm";
 import VotingCards from "../../../../components/VotingCards";
 import { supabaseClient } from "../../../../lib/supabaseClient";
@@ -61,6 +62,20 @@ export default function BoardClient({
 
   const [finalEstimate, setFinalEstimate] =
     useState("");
+  const [copied, setCopied] =
+    useState(false);
+
+  const [
+    editingTicket,
+    setEditingTicket,
+  ] = useState<Ticket | null>(
+    null
+  );
+
+  const [
+    editEstimate,
+    setEditEstimate,
+  ] = useState("");
 
   const [showCreateTicket, setShowCreateTicket] = useState(false);
   const [showResults, setShowResults] = useState(activeTicket?.votes_revealed ?? false);
@@ -174,7 +189,10 @@ const loadActiveTicket =
         setShowResults(false);
         setFinalEstimate("");
       }
-
+    setActiveTicket(data);
+    setShowResults(
+      data.votes_revealed
+    );
     const statsResponse =
       await fetch(
         `/api/tickets/stats/${data.id}`
@@ -364,10 +382,6 @@ const loadActiveTicket =
           "5",
           "8",
           "13",
-          "21",
-          "34",
-          "55",
-          "89",
         ]
       : session.voting_type ===
         "even"
@@ -401,15 +415,92 @@ const loadActiveTicket =
           "XL",
         ];
 
-  return (
-<div className="w-full max-w-[1800px] mx-auto text-white px-4 py-8">
+const handleDelete =
+  async (
+    ticketId: string
+  ) => {
+    const confirmed =
+      window.confirm(
+        "Delete this ticket?"
+      );
 
-      <div className="rounded-xl border-slate-700 bg-linear-to-r from-purple-600 to-purple-900 p-4 mb-4">
+    if (!confirmed) {
+      return;
+    }
+
+    await fetch(
+      "/api/tickets/delete",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          ticketId,
+        }),
+      }
+    );
+
+    await loadHistory();
+  };
+
+const handleEdit =
+  (
+    ticket: Ticket
+  ) => {
+    setEditingTicket(
+      ticket
+    );
+
+    setEditEstimate(
+      ticket.final_estimate ??
+        ""
+    );
+  };
+
+const saveEstimate =
+  async () => {
+    if (
+      !editingTicket
+    ) {
+      return;
+    }
+
+    await fetch(
+      "/api/tickets/update-estimate",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          ticketId:
+            editingTicket.id,
+          finalEstimate:
+            editEstimate,
+        }),
+      }
+    );
+
+    setEditingTicket(
+      null
+    );
+
+    await loadHistory();
+  };
+
+
+return (
+  <div className="w-full max-w-[1800px] mx-auto text-black px-4 py-1">
+
+      <div className="rounded-xl border-black bg-slate-800 p-4 mb-4">
 
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
 
           <div>
-            <h1 className="text-5xl font-bold text-white">
+            <h1 className="inline-block border-b-2 border-white pb-2 text-4xl font-bold tracking-tight text-white">
               {session.name}
             </h1>
 
@@ -426,20 +517,30 @@ const loadActiveTicket =
             </div>
           </div>
 
-          <button
-            onClick={() => {
-                  navigator.clipboard.writeText(
-                    `${window.location.origin}/room/${session.room_code}`
-                  );
+          <div className="relative">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  `${window.location.origin}/room/${session.room_code}`
+                );
+                setCopied(true);
 
-              alert(
-                "Invite link copied"
-              );
-            }}
-            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2 text-white font-semibold transition-all"
-          >
-            Copy Invite Link
-          </button>
+                setTimeout(() => {
+                  setCopied(false);
+                }, 1000);
+              }}
+              className="flex items-center gap-2 rounded-xl bg-gray-200 hover:bg-gray-400 px-5 py-2 text-black font-semibold transition-all"
+            >
+              <FiShare2 size={18} />
+
+              invite Link
+            </button>
+            {copied && (
+              <div className="absolute right-0 mt-2 rounded-lg bg-green-600 px-3 py-2 text-sm text-white shadow-lg">
+                ✓ Copied
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
@@ -448,7 +549,7 @@ const loadActiveTicket =
 
         <div className="space-y-4">
 
-          <div className="rounded-2xl border border-slate-700 bg-linear-to-r from-purple-900 to-purple-600 p-3 h-full flex flex-col">
+          <div className="rounded-2xl border border-black bg-slate-800  p-3 h-full flex flex-col">
             <div className="relative mb-4">
               <h2 className="text-3xl font-semibold text-white text-center">
                 Active Ticket
@@ -501,13 +602,13 @@ const loadActiveTicket =
                       rounded-3xl
                       border
                       border-slate-700
-                      bg-slate-900
+                      bg-white
                       p-6
                       shadow-2xl
                     "
                   >
                     <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-2xl font-bold text-white">
+                      <h2 className="text-2xl font-bold text-black">
                         Create Ticket
                       </h2>
                       <button
@@ -516,8 +617,9 @@ const loadActiveTicket =
                         }
                         className="
                           rounded-lg
-                          bg-slate-700
-                          hover:bg-slate-600
+                          bg-red-500
+                          hover:bg-yellow-400
+                          text-white
                           px-4
                           py-2
                         "
@@ -577,9 +679,6 @@ const loadActiveTicket =
                         {activeTicket.title}
                       </div>
 
-                      <div className="mt-1 text-slate-200">
-                        {activeTicket.description}
-                      </div>
                     </div>
 
                     {isCreator && !showResults && (
@@ -588,8 +687,8 @@ const loadActiveTicket =
                           onClick={completeTicket}
                           className="
                             rounded-xl
-                            bg-cyan-900
-                            hover:bg-blue-900
+                            bg-gray-300
+                            hover:bg-gray-400
                             px-6
                             py-3
                             text-sm
@@ -619,7 +718,7 @@ const loadActiveTicket =
                         />
 
                         {myVote && (
-                          <div className="mt-5 rounded-xl bg-emerald-900/30 border border-emerald-700 p-4">
+                          <div className="mt-5 rounded-xl bg-gray-500 border border-gray-300 p-4">
                             Your Vote:
                             <span className="ml-2 font-bold">
                               {myVote}
@@ -649,19 +748,10 @@ const loadActiveTicket =
               </>
             )}
           </div>
-
-          {participantRole ===
-            "SPECTATOR" && (
-            <div className="rounded-2xl border border-slate-700 bg-purple-700 p-4">
-              <div className="text-center text-slate-400">
-                Spectator Mode
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-3xl border border-slate-700 bg-linear-to-r from-purple-900 to-purple-600 p-6 h-full">
+          <div className="rounded-3xl border border-black bg-slate-800  p-6 h-full">
 
             <div className="text-center mb-4">
               <div className="text-xl font-bold text-white">
@@ -686,7 +776,7 @@ const loadActiveTicket =
                       key={
                         participant.id
                       }
-                      className="flex items-center justify-between rounded-xl bg-slate-800 p-3"
+                      className="flex items-center justify-between rounded-xl bg-slate-600 p-3"
                     >
                       <div>
                         <div className="font-medium text-white">
@@ -764,16 +854,16 @@ const loadActiveTicket =
                 {activeTicket &&
                   stats &&
                   showResults && (
-                    <div className="rounded-2xl border border-slate-700 bg-purple-700 p-4 mt-4">
+                    <div className="rounded-2xl border border-black bg-gray-700 p-4 mt-4">
 
-                      <h2 className="text-xl font-semibold mb-4">
-                        Results
+                      <h2 className="inline-block border-b-2 border-indigo-400 pb- font-bold text-xl text-white mb-4">
+                        Results 🫣
                       </h2>
 
                       <div className="grid md:grid-cols-2 gap-4 mb-6">
 
-                        <div className="rounded-xl bg-slate-950 p-4">
-                          <div className="text-slate-400 text-sm">
+                        <div className="rounded-xl bg-white p-4">
+                          <div className="text-black text-sm">
                             Votes
                           </div>
 
@@ -782,8 +872,8 @@ const loadActiveTicket =
                           </div>
                         </div>
 
-                        <div className="rounded-xl bg-slate-950 p-4">
-                          <div className="text-slate-400 text-sm">
+                        <div className="rounded-xl bg-white p-4">
+                          <div className="text-black text-sm">
                             Average
                           </div>
 
@@ -797,8 +887,8 @@ const loadActiveTicket =
                       {isCreator && (
                         <div className="mt-5">
 
-                          <h3 className="font-semibold mb-3">
-                            Final Estimate
+                          <h3 className="text-white font-semibold mb-1">
+                            Finalise
                           </h3>
 
                           <select
@@ -808,7 +898,7 @@ const loadActiveTicket =
                                 e.target.value
                               )
                             }
-                            className="w-full rounded-xl border border-purple-700 bg-slate-800 px-4 py-3 mb-4"
+                            className="w-full rounded-xl border border-purple-700 bg-white px-3 py-2 mb-4"
                           >
                             <option value="">
                               Select Final Estimate
@@ -826,7 +916,7 @@ const loadActiveTicket =
 
                           <button
                             onClick={finalizeTicket}
-                            className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-3 font-semibold"
+                            className="w-full rounded-xl text-white bg-green-600 hover:bg-green-700 px-5 py-3 font-semibold"
                           >
                             Finalize Ticket
                           </button>
@@ -840,7 +930,7 @@ const loadActiveTicket =
           </div>
       </div>
 
-      <div className="rounded-3xl border border-slate-800 bg-linear-to-r from-purple-500 to-purple-900 p-3 mt-3">
+      <div className="rounded-3xl border border-black bg-slate-800  p-4 mt-3">
 
         <h2 className="text-lg font-semibold mb-3 text-white">
           Ticket History
@@ -848,7 +938,7 @@ const loadActiveTicket =
 
         {history.length ===
         0 ? (
-          <div className="text-slate-400">
+          <div className="text-black">
             No completed tickets
           </div>
         ) : (
@@ -862,25 +952,46 @@ const loadActiveTicket =
                   key={
                     ticket.id
                   }
-                  className="flex items-center justify-between rounded-xl bg-slate-950 p-4"
+                  className="flex items-center justify-between rounded-xl bg-gray-400 p-2"
                 >
                   <div>
-                    <div className="font-medium">
+                    <div className="font-bold text-black">
                       {
                         ticket.ticket_key
                       }
                     </div>
 
-                    <div className="text-sm text-slate-400">
+                    <div className="text-sm text-slate-600">
                       {
                         ticket.title
                       }
                     </div>
                   </div>
 
-                  <div className="rounded-lg bg-indigo-600 px-3 py-2 font-semibold">
-                    {ticket.final_estimate ??
-                      "-"}
+                  <div className="flex items-center gap-3">
+
+                    <div className="rounded-lg bg-indigo-600 px-4 py-1 font-semibold text-white">
+                      {ticket.final_estimate ?? "-"}
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        handleEdit(ticket)
+                      }
+                      className="text-black px-4"
+                    >
+                      <FiEdit2 size={18} />
+                    </button>
+
+                    <button
+                      onClick={() =>
+                        handleDelete(ticket.id)
+                      }
+                      className="text-black px-4"
+                    >
+                      <FiTrash2 size={18} />
+                    </button>
+
                   </div>
                 </div>
               )
@@ -890,7 +1001,92 @@ const loadActiveTicket =
         )}
 
       </div>
+      
+      {
+        editingTicket && (
+          <div
+            className="
+              fixed
+              inset-0
+              z-50
+              bg-black/70
+              backdrop-blur-sm
+              flex
+              items-center
+              justify-center
+            "
+          >
+            <div
+              className="
+                w-full
+                max-w-md
+                rounded-3xl
+                bg-white
+                p-6
+                shadow-2xl
+              "
+            >
+              <h2 className="text-2xl font-bold mb-4">
+                Update Estimate
+              </h2>
 
+              <input
+                value={
+                  editEstimate
+                }
+                onChange={(e) =>
+                  setEditEstimate(
+                    e.target.value
+                  )
+                }
+                className="
+                  w-full
+                  border
+                  rounded-xl
+                  p-3
+                  mb-4
+                "
+              />
+
+              <div className="flex justify-end gap-3">
+
+                <button
+                  onClick={() =>
+                    setEditingTicket(
+                      null
+                    )
+                  }
+                  className="
+                    rounded-xl
+                    bg-gray-300
+                    px-4
+                    py-2
+                  "
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={
+                    saveEstimate
+                  }
+                  className="
+                    rounded-xl
+                    bg-indigo-600
+                    px-4
+                    py-2
+                    text-white
+                  "
+                >
+                  Save
+                </button>
+
+              </div>
+
+            </div>
+          </div>
+        )
+      }
     </div>
   );
 }

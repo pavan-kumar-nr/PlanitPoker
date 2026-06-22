@@ -29,8 +29,8 @@ export default async function BoardPage({
   }
 
   return (
-    <main className="min-h-screen w-full bg-gray-900 text-white">
-      <div className="w-full border-b bg-linear-to-r from-blue-600 to-pink-600 text-white px-8 py-6">
+    <main className="min-h-screen w-full bg-white text-black">
+      <div className="w-full border-b bg-linear-to-r from-blue-600 to-purple-900 text-white px-8 py-6">
         <h1 className="text-4xl font-bold tracking-tight">
           Planit Poker
         </h1>
