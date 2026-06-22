@@ -128,133 +128,129 @@ const [user, setUser] = useState<User | null>(null);
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
 
-      <div className="max-w-6xl mx-auto px-6 py-16">
+    <main className="min-h-screen w-full bg-white text-black">
+      <div className="w-full border-b bg-linear-to-r from-blue-600 to-purple-900 text-white px-8 py-6">
+        <h1 className="text-4xl font-bold tracking-tight">
+          Planit Poker
+        </h1>
+        <p className="mt-2 text-blue-100">
+          Real-time agile estimation for your team
+        </p>
+      </div>
 
-        <div className="flex justify-between items-center mb-10">
 
-          <div>
-            <h1 className="text-5xl font-bold mb-2">
-              Planit Poker
-            </h1>
 
-            <p className="text-slate-400">
-              {user.email}
-            </p>
-          </div>
+<div className="flex items-center justify-center px-6 py-12">
 
-          <div className="flex gap-3">
+  <div className="w-full max-w-7xl grid lg:grid-cols-2 gap-10">
 
-            <button
-              onClick={() =>
-                router.push("/rooms")
-              }
-              className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-3 font-semibold"
-            >
-              My Rooms
-            </button>
+    {/* Create Session */}
 
-            <button
-              onClick={logout}
-              className="rounded-xl bg-red-600 hover:bg-red-700 px-5 py-3 font-semibold"
-            >
-              Logout
-            </button>
+    <div className="w-full rounded-3xl border border-slate-800 bg-blue-900 p-8">
 
-          </div>
+      <h2 className="text-3xl font-bold text-white mb-8 text-center">
+        Create Session
+      </h2>
 
-        </div>
+      <div className="mb-4">
 
-        <div className="grid lg:grid-cols-2 gap-8">
+        <input
+          value={projectName}
+          onChange={(e) =>
+            setProjectName(
+              e.target.value
+            )
+          }
+          placeholder="Sprint Name"
+          className="w-full rounded-xl bg-white px-4 py-3 text-black border border-slate-700"
+        />
 
-          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
+      </div>
 
-            <h2 className="text-2xl font-semibold mb-6">
-              Create Session
-            </h2>
+      <div className="mb-4">
 
-            <input
-              value={projectName}
-              onChange={(e) =>
-                setProjectName(
-                  e.target.value
-                )
-              }
-              placeholder="Project Name"
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-4"
-            />
-
-            <div className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-4 text-slate-300">
-              Creator:
-              {" "}
-              {user.email}
-            </div>
-
-            <select
-              value={votingType}
-              onChange={(e) =>
-                setVotingType(
-                  e.target.value
-                )
-              }
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-6"
-            >
-              <option value="fibonacci">
-                Fibonacci
-              </option>
-
-              <option value="even">
-                Even Numbers
-              </option>
-
-              <option value="odd">
-                Odd Numbers
-              </option>
-
-            </select>
-
-            <button
-              onClick={createSession}
-              disabled={loading}
-              className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 px-4 py-3 font-semibold"
-            >
-              {loading
-                ? "Creating..."
-                : "Create Session"}
-            </button>
-
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 shadow-xl">
-
-            <h2 className="text-2xl font-semibold mb-6">
-              Join Existing Room
-            </h2>
-
-            <input
-              value={roomCode}
-              onChange={(e) =>
-                setRoomCode(
-                  e.target.value
-                )
-              }
-              placeholder="Room Code"
-              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-6"
-            />
-
-            <button
-              onClick={joinRoom}
-              className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-3 font-semibold"
-            >
-              Join Room
-            </button>
-
-          </div>
-
+        <div className="w-full rounded-xl bg-white px-4 py-3 text-black border border-slate-700">
+          Creator: {user.email}
         </div>
 
       </div>
+
+      <div className="mb-6">
+
+        <select
+          value={votingType}
+          onChange={(e) =>
+            setVotingType(
+              e.target.value
+            )
+          }
+          className="w-full rounded-xl bg-white px-4 py-3 text-black border border-slate-700"
+        >
+          <option value="fibonacci">
+            Fibonacci
+          </option>
+
+          <option value="even">
+            Even Numbers
+          </option>
+
+          <option value="odd">
+            Odd Numbers
+          </option>
+        </select>
+
+      </div>
+
+      <button
+        onClick={createSession}
+        disabled={loading}
+        className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 py-3 font-semibold text-white transition-all"
+      >
+        {loading
+          ? "Creating..."
+          : "Create Session"}
+      </button>
+
+    </div>
+
+    {/* Join Room */}
+
+    <div className="w-full rounded-3xl border border-slate-800 bg-blue-900 p-8">
+
+      <h2 className="text-3xl font-bold text-white mb-8 text-center">
+        Join Existing Room
+      </h2>
+
+      <div className="mb-6">
+
+        <input
+          value={roomCode}
+          onChange={(e) =>
+            setRoomCode(
+              e.target.value
+            )
+          }
+          placeholder="Room Code"
+          className="w-full rounded-xl bg-white px-4 py-3 text-black border border-slate-700"
+        />
+
+      </div>
+
+      <button
+        onClick={joinRoom}
+        className="w-full rounded-xl bg-green-700 hover:bg-green-800 py-3 font-semibold text-white transition-all"
+      >
+        Join Room
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
+
 
     </main>
   );
