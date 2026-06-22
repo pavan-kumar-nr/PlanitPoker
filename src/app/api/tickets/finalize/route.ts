@@ -14,32 +14,23 @@ export async function POST(
 
   const {
     data: ticket,
+    error: ticketError,
   } = await supabase
     .from("tickets")
     .select(
       "session_id"
     )
-    .eq("id", ticketId)
+    .eq(
+      "id",
+      ticketId
+    )
     .single();
 
-  const { error } =
-    await supabase
-      .from("tickets")
-      .update({
-        completed: true,
-        status: "COMPLETED",
-        final_estimate:
-          finalEstimate,
-      })
-      .eq(
-        "id",
-        ticketId
-      );
-
-  if (error) {
+  if (ticketError) {
     return NextResponse.json(
       {
-        error: error.message,
+        error:
+          ticketError.message,
       },
       {
         status: 500,
@@ -47,19 +38,60 @@ export async function POST(
     );
   }
 
+  const {
+    error: updateTicketError,
+  } = await supabase
+    .from("tickets")
+    .update({
+      completed: true,
+      status: "COMPLETED",
+      final_estimate:
+        finalEstimate,
+    })
+    .eq(
+      "id",
+      ticketId
+    );
+
   if (
-    ticket?.session_id
+    updateTicketError
   ) {
-    await supabase
-      .from("sessions")
-      .update({
-        active_ticket_id:
-          null,
-      })
-      .eq(
-        "id",
-        ticket.session_id
-      );
+    return NextResponse.json(
+      {
+        error:
+          updateTicketError.message,
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+
+  const {
+    error: updateSessionError,
+  } = await supabase
+    .from("sessions")
+    .update({
+      active_ticket_id:
+        null,
+    })
+    .eq(
+      "id",
+      ticket.session_id
+    );
+
+  if (
+    updateSessionError
+  ) {
+    return NextResponse.json(
+      {
+        error:
+          updateSessionError.message,
+      },
+      {
+        status: 500,
+      }
+    );
   }
 
   return NextResponse.json({

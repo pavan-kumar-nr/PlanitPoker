@@ -15,9 +15,6 @@ export default function CreateTicketForm({
   const [title, setTitle] =
     useState("");
 
-  const [description, setDescription] =
-    useState("");
-
   const [loading, setLoading] =
     useState(false);
 
@@ -43,7 +40,6 @@ export default function CreateTicketForm({
               sessionId,
               ticketKey,
               title,
-              description,
             }),
           }
         );
@@ -56,7 +52,7 @@ export default function CreateTicketForm({
 
       setTicketKey("");
       setTitle("");
-      setDescription("");
+      // setDescription("");
 
       onCreated();
     } catch (error) {
@@ -71,11 +67,7 @@ export default function CreateTicketForm({
   }
 
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900 p-6">
-
-      <h2 className="text-xl font-semibold mb-6">
-        Create Ticket
-      </h2>
+    <div className="rounded-3xl border border-slate-800 bg-blue-900 p-6">
 
       <input
         value={ticketKey}
@@ -85,7 +77,7 @@ export default function CreateTicketForm({
           )
         }
         placeholder="CRM-101"
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-3"
+        className="w-full rounded-xl border border-slate-700 bg-white px-4 py-3 mb-3"
       />
 
       <input
@@ -96,25 +88,13 @@ export default function CreateTicketForm({
           )
         }
         placeholder="Ticket Title"
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-3"
-      />
-
-      <textarea
-        value={description}
-        onChange={(e) =>
-          setDescription(
-            e.target.value
-          )
-        }
-        placeholder="Description"
-        rows={4}
-        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 mb-4"
+        className="w-full rounded-xl border border-slate-700 bg-white px-4 py-3 mb-3"
       />
 
       <button
         onClick={handleCreate}
         disabled={loading}
-        className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 transition-all px-4 py-3 font-semibold"
+        className="w-full rounded-xl bg-green-600 hover:bg-green-700 transition-all px-4 py-3 font-semibold"
       >
         {loading
           ? "Creating..."

@@ -75,22 +75,23 @@ export default function VotingCards({
               onVote(value)
             }
             className={`
-              h-60
+              h-50
               w-full
               rounded-2xl
               border
               font-bold
-              text-2xl
+              text-4xl
+              text-white
+              bg-slate-900
               transition-all
               duration-200
               hover:-translate-y-1
               hover:shadow-xl
 
               ${
-                selectedVote ===
-                value
-                  ? "bg-indigo-600 border-indigo-400"
-                  : "bg-slate-900 border-slate-700"
+                selectedVote === value
+                  ? "bg-indigo-600 border-indigo-400 text-white shadow-lg scale-105"
+                  : "bg-slate-900 border-slate-700 text-white hover:border-indigo-400 hover:bg-slate-800"
               }
 
               ${
