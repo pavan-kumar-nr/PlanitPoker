@@ -138,37 +138,42 @@ export async function GET(
       session.active_ticket_id
     );
 
-  const enriched =
-    participants.map(
-      (
-        participant
-      ) => {
-        const vote =
-          votes?.find(
-            (v) =>
-              v.participant_id ===
-              participant.id
-          );
+const enriched =
+  participants.map(
+    (
+      participant
+    ) => {
+      const vote =
+        votes?.find(
+          (v) =>
+            v.participant_id ===
+            participant.id
+        );
 
-        return {
-          ...participant,
+      return {
+        ...participant,
 
-          hasVoted:
-            !!vote,
+        hasVoted:
+          !!vote,
 
-          voteValue:
-            ticket?.votes_revealed
-              ? vote?.vote_value ??
-                null
-              : null,
+        voteValue:
+          ticket?.votes_revealed
+            ? vote?.vote_value ??
+              null
+            : null,
 
-          currentVote:
-            vote?.vote_value ??
-            null,
-        };
-      }
-    );
+        comment:
+          ticket?.votes_revealed
+            ? vote?.comment ??
+              null
+            : null,
 
+        currentVote:
+          vote?.vote_value ??
+          null,
+      };
+    }
+  );
   return NextResponse.json(
     enriched
   );

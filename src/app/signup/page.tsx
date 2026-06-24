@@ -1,12 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseClient } from "../../lib/supabaseClient";
 
 export default function SignupPage() {
   const router = useRouter();
+  useEffect(() => {
+    async function checkUser() {
 
+      const {
+        data: { session },
+      } =
+        await supabaseClient.auth.getSession();
+
+      if (session) {
+        router.replace("/rooms");
+      }
+    }
+
+    checkUser();
+  }, [router]);
   const [email, setEmail] =
     useState("");
 
@@ -55,25 +69,39 @@ export default function SignupPage() {
     try {
       setLoading(true);
 
-      const { error } =
-        await supabaseClient.auth.signUp(
-          {
-            email,
-            password,
-          }
-        );
+      const {
+        data,
+        error,
+      } = await supabaseClient.auth.signUp({
+        email,
+        password,
+      });
 
       if (error) {
+
+        if (
+          error.message.includes(
+            "already registered"
+          )
+        ) {
+
+          setSignupError(
+            "Account already exists. Please login."
+          );
+
+          return;
+        }
+
         throw error;
       }
 
-    setSignupSuccess(
-       "Account created successfully. Redirecting to login..."
-    );
+      setSignupSuccess(
+        "Account created successfully."
+      );
 
-    setTimeout(() => {
-       router.push("/login");
-    }, 1500);
+      setTimeout(() => {
+        router.replace("/rooms");
+      }, 1000);
 
     } catch (error: unknown) {
       console.error(error);
@@ -197,6 +225,16 @@ export default function SignupPage() {
           {loading
             ? "Creating..."
             : "Create Account"}
+        </button>
+
+        <div className="mt-4 text-white text-sm"> already have an account? </div>
+        <button
+          onClick={() =>
+            router.push("/login")
+          }
+          className="w-full mt-4 rounded-xl bg-green-600 hover:bg-green-800 py-3 font-semibold text-white transition-all"
+        >
+          login
         </button>
 
       </div>

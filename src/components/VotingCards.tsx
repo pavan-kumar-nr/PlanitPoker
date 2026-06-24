@@ -62,7 +62,7 @@ export default function VotingCards({
     votingSets.fibonacci;
 
   return (
-    <div className="grid grid-cols-5 md:grid-cols-5 lg:grid-cols-6 gap-6">
+    <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
       {cards.map(
         (value) => (
@@ -75,7 +75,7 @@ export default function VotingCards({
               onVote(value)
             }
             className={`
-              h-50
+              h-40
               w-full
               rounded-2xl
               border
