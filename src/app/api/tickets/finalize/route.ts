@@ -10,6 +10,7 @@ export async function POST(
   const {
     ticketId,
     finalEstimate,
+    finalComment,
   } = body;
 
   const {
@@ -39,14 +40,19 @@ export async function POST(
   }
 
   const {
-    error: updateTicketError,
+    error:
+      updateTicketError,
   } = await supabase
     .from("tickets")
     .update({
       completed: true,
-      status: "COMPLETED",
+      status:
+        "COMPLETED",
       final_estimate:
         finalEstimate,
+      final_comment:
+        finalComment ??
+        null,
     })
     .eq(
       "id",
@@ -68,11 +74,13 @@ export async function POST(
   }
 
   const {
-    error: updateSessionError,
+    error:
+      updateSessionError,
   } = await supabase
     .from("sessions")
     .update({
-      active_ticket_id: null,
+      active_ticket_id:
+        null,
     })
     .eq(
       "id",

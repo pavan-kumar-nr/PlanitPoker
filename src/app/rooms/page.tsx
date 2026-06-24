@@ -24,6 +24,20 @@ type Session = {
 
 export default function RoomsPage() {
   const router = useRouter();
+  
+  useEffect(() => {
+    async function checkSession() {
+      const {
+        data: { session },
+      } = await supabaseClient.auth.getSession();
+
+      if (!session) {
+        router.replace("/signup");
+      }
+    }
+
+    checkSession();
+  }, [router]);
 
   const [user, setUser] =
     useState<User | null>(null);
@@ -33,6 +47,23 @@ export default function RoomsPage() {
 
   const [loading, setLoading] =
     useState(true);
+    
+    const [projectName, setProjectName] =
+  useState("");
+
+const [roomCode, setRoomCode] =
+  useState("");
+
+const [votingType, setVotingType] =
+  useState("fibonacci");
+
+const [creating, setCreating] =
+  useState(false);
+
+  const [
+  showHistory,
+  setShowHistory,
+] = useState(false);
 
 useEffect(() => {
   async function loadData() {
@@ -65,10 +96,113 @@ useEffect(() => {
   loadData();
 }, [router]);
 
+useEffect(() => {
+  async function checkSession() {
+    const {
+      data: { session },
+    } = await supabaseClient.auth.getSession();
+
+    console.log("ROOMS SESSION", session);
+
+    if (!session) {
+      router.replace("/signup");
+    }
+  }
+
+  checkSession();
+}, []);
+
+async function createSession() {
+
+  if (!projectName.trim()) {
+    alert(
+      "Please enter session name"
+    );
+    return;
+  }
+
+  if (!user) {
+    return;
+  }
+
+  try {
+
+    setCreating(true);
+
+    const response =
+      await fetch(
+        "/api/sessions",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+
+          body: JSON.stringify({
+            name:
+              projectName,
+
+            creatorName:
+              user.email,
+
+            votingType,
+
+            createdBy:
+              user.id,
+          }),
+        }
+      );
+
+    const session =
+      await response.json();
+
+    localStorage.setItem(
+      "participant-name",
+      user.email ?? ""
+    );
+
+    localStorage.setItem(
+      "participant-role",
+      "CREATOR"
+    );
+
+    router.push(
+      `/room/${session.room_code}/board`
+    );
+
+  } catch (error) {
+
+    console.error(error);
+
+  } finally {
+
+    setCreating(false);
+
+  }
+}
+
+function joinRoom() {
+
+  if (!roomCode.trim()) {
+
+    alert(
+      "Please enter room code"
+    );
+
+    return;
+  }
+
+  router.push(
+    `/room/${roomCode.toUpperCase()}`
+  );
+}
+
   async function logout() {
     await supabaseClient.auth.signOut();
 
-    router.push("/login");
+    router.replace("/login");
   }
 
   if (loading) {
@@ -86,15 +220,8 @@ useEffect(() => {
 
         {/* Left */}
         <div className="flex items-center gap-4">
-            <button
-            onClick={() => router.push("/")}
-            className="flex h-15 w-15 items-center justify-center rounded-xl bg-blue-700 border border-blue-800 hover:border-indigo-400 transition-all"
-            title="Home"
-            >
-            <Home size={26} />
-            </button>
 
-            <div>
+          <div>
             <h1 className="text-4xl font-bold tracking-tight">
                 Planit Poker
             </h1>
@@ -102,7 +229,7 @@ useEffect(() => {
             <p className="text-blue-100 text-sm mt-1">
                 Real-time agile estimation for your team
             </p>
-            </div>
+          </div>
         </div>
 
         {/* Center */}
@@ -128,103 +255,323 @@ useEffect(() => {
 
         </div>
         <div className="max-w-7xl mx-auto px-6 py-10">
+          {/* CREATE / JOIN */}
 
-        {sessions.length === 0 ? (
+            <div className="grid lg:grid-cols-2 gap-8 mb-10">
 
-        <div className="text-center">
-            <h2 className="text-3xl font-bold mb-3">
-                No Rooms Found
-            </h2>
-            <p className="text-slate-400 mb-6">
-                You have not created any rooms yet.
-            </p>
-            <button
-                onClick={() => router.push("/")}
-                className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-6 py-3 font-semibold"
-            >
-                Create First Room
-            </button>
-        </div>
+              {/* Create Session */}
 
-        ) : (
+              <div className="rounded-3xl border border-slate-800 bg-blue-900 p-8">
 
-            <div className="space-y-4">
+                <h2 className="text-3xl font-bold text-white mb-6">
+                  Create Session
+                </h2>
 
-            {/* Table Header */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_220px] px-4 py-2 text-lg text-Black font-bold">
-                <div>Session</div>
-                <div>Room</div>
-                <div>Participants</div>
-                <div>Status</div>
-                <div>Completed</div>
-                <div className="text-right">Actions</div>
-            </div>
+                <input
+                  value={projectName}
+                  onChange={(e) =>
+                    setProjectName(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Sprint Name"
+                  className="w-full rounded-xl bg-white px-4 py-3 text-black mb-4"
+                />
 
-            {sessions.map((session) => (
-                <div
-                key={session.id}
-                className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_220px] items-center rounded-2xl border border-slate-800 bg-blue-900 p-4 hover:border-indigo-500 transition-all"
+                <div className="w-full rounded-xl bg-white px-4 py-3 text-black mb-4">
+                  {user?.email}
+                </div>
+
+                <select
+                  value={votingType}
+                  onChange={(e) =>
+                    setVotingType(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-xl bg-white px-4 py-3 text-black mb-6"
                 >
-                <div className="font-bold text-white truncate pr-4">
-                    {session.name}
-                </div>
 
-                <div>
-                    <div className="text-white font-semibold">
-                    {session.room_code}
-                    </div>
-                </div>
+                  <option value="fibonacci">
+                    Fibonacci
+                  </option>
 
-                <div>
-                    <div className="text-white font-semibold">
-                    {(session.participants?.[0]?.count ?? 0) - 1}
-                    </div>
-                </div>
+                  <option value="even">
+                    Even Numbers
+                  </option>
 
-                <div>
-                    <div className="text-white font-semibold">
-                    {session.active_ticket_id
-                        ? "🟢 Active"
-                        : "⚪ Inactive"}
-                    </div>
-                </div>
+                  <option value="odd">
+                    Odd Numbers
+                  </option>
 
-                <div>
-                    <div className="text-white font-semibold">
-                    {session.completed_tickets ?? 0}
-                    </div>
-                </div>
+                </select>
 
-                <div className="flex justify-end items-center gap-3">
-                    <button
-                    onClick={() =>
-                        router.push(
-                        `/room/${session.room_code}/board`
-                        )
-                    }
-                    className="rounded-xl bg-indigo-600 hover:bg-indigo-700 px-5 py-2 font-semibold whitespace-nowrap"
-                    >
-                    Open Room
-                    </button>
+                <button
+                  onClick={
+                    createSession
+                  }
+                  disabled={creating}
+                  className="
+                    w-full
+                    rounded-xl
+                    bg-indigo-600
+                    hover:bg-indigo-700
+                    py-3
+                    text-white
+                    font-semibold
+                  "
+                >
 
-                    <button
-                    onClick={() => {
-                        navigator.clipboard.writeText(
-                        `${window.location.origin}/room/${session.room_code}`
-                        );
-                    }}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                    title="Copy Invite"
-                    >
-                    <Copy size={18} />
-                    </button>
-                </div>
-                </div>
-            ))}
+                  {creating
+                    ? "Creating..."
+                    : "Create Session"}
 
+                </button>
+
+              </div>
+
+              {/* Join Session */}
+
+              <div className="rounded-3xl border border-slate-800 bg-blue-900 p-8">
+
+                <h2 className="text-3xl font-bold text-white mb-6">
+                  Join Existing Room
+                </h2>
+
+                <input
+                  value={roomCode}
+                  onChange={(e) =>
+                    setRoomCode(
+                      e.target.value
+                    )
+                  }
+                  placeholder="Room Code"
+                  className="w-full rounded-xl bg-white px-4 py-3 text-black mb-6"
+                />
+
+                <button
+                  onClick={
+                    joinRoom
+                  }
+                  className="
+                    w-full
+                    rounded-xl
+                    bg-emerald-600
+                    hover:bg-emerald-700
+                    py-3
+                    text-white
+                    font-semibold
+                  "
+                >
+
+                  Join Room
+
+                </button>
+
+              </div>
             </div>
 
-        )}
+      <div className="my-15 border-t border-black" />
+
+        {/* SESSION HISTORY */}
+
+          <div className="rounded-3xl border border-slate-300 overflow-hidden">
+
+            {/* Header */}
+
+            <button
+              onClick={() =>
+                setShowHistory(
+                  !showHistory
+                )
+              }
+              className="
+                w-full
+                flex
+                items-center
+                justify-between
+                px-6
+                py-5
+                bg-slate-100
+                hover:bg-slate-200
+                transition-all
+              "
+            >
+
+              <div>
+
+                <h2 className="text-2xl font-bold text-left">
+                  Session History
+                </h2>
+
+                <p className="text-slate-500 text-sm mt-1">
+                  View all previously created planning sessions
+                </p>
+
+              </div>
+
+              <div className="text-2xl font-bold">
+
+                {showHistory
+                  ? "📖hide"
+                  : "📕show"}
+
+              </div>
+
+            </button>
+
+            {/* Content */}
+
+            {showHistory && (
+
+              <div className="p-6 bg-white">
+
+                {sessions.length === 0 ? (
+
+                  <div className="text-center py-10">
+
+                    <h3 className="text-2xl font-bold mb-2">
+                      No Sessions Yet
+                    </h3>
+
+                    <p className="text-slate-500">
+                      Create your first planning session above.
+                    </p>
+
+                  </div>
+
+                ) : (
+
+                  <div className="space-y-4">
+
+                    {/* Table Header */}
+
+                    <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_220px] px-4 py-2 text-lg font-bold">
+
+                      <div>Session</div>
+
+                      <div>Room</div>
+
+                      <div>Participants</div>
+
+                      <div>Status</div>
+
+                      <div>Completed</div>
+
+                      <div className="text-right">
+                        Actions
+                      </div>
+
+                    </div>
+
+                    {sessions.map(
+                      (session) => (
+
+                        <div
+                          key={
+                            session.id
+                          }
+                          className="
+                            grid
+                            grid-cols-[2fr_1fr_1fr_1fr_1fr_220px]
+                            items-center
+                            rounded-2xl
+                            border
+                            border-slate-800
+                            bg-blue-900
+                            p-4
+                            hover:border-indigo-500
+                            transition-all
+                          "
+                        >
+
+                          <div className="font-bold text-white truncate pr-4">
+                            {
+                              session.name
+                            }
+                          </div>
+
+                          <div className="text-white font-semibold">
+                            {
+                              session.room_code
+                            }
+                          </div>
+
+                          <div className="text-white font-semibold">
+                            {
+                              (session.participants?.[0]?.count ?? 0) - 1
+                            }
+                          </div>
+
+                          <div className="text-white font-semibold">
+                            {session.active_ticket_id
+                              ? "🟢 Active"
+                              : "⚪ Inactive"}
+                          </div>
+
+                          <div className="text-white font-semibold">
+                            {
+                              session.completed_tickets ?? 0
+                            }
+                          </div>
+
+                          <div className="flex justify-end gap-3">
+
+                            <button
+                              onClick={() =>
+                                router.push(
+                                  `/room/${session.room_code}/board`
+                                )
+                              }
+                              className="
+                                rounded-xl
+                                bg-indigo-600
+                                hover:bg-indigo-700
+                                px-5
+                                py-2
+                                text-white
+                                font-semibold
+                              "
+                            >
+                              Open Room
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                navigator.clipboard.writeText(
+                                  `${window.location.origin}/room/${session.room_code}`
+                                )
+                              }
+                              className="
+                                flex
+                                h-10
+                                w-10
+                                items-center
+                                justify-center
+                                rounded-xl
+                                bg-emerald-600
+                                hover:bg-emerald-700
+                              "
+                            >
+                              <Copy size={18} />
+                            </button>
+
+                          </div>
+
+                        </div>
+
+                      )
+                    )}
+
+                  </div>
+
+                )}
+
+              </div>
+
+            )}
+
+          </div>
 
         </div>
 

@@ -12,8 +12,17 @@ export async function GET(
   const { data, error } = await supabase
     .from("sessions")
     .select("*")
-    .eq("room_code", roomcode)
+    .ilike("room_code", roomcode)
     .maybeSingle();
+console.log(
+  "ROOM DATA:",
+  data
+);
+
+console.log(
+  "ROOM ERROR:",
+  error
+);
 
   if (error) {
     return NextResponse.json(

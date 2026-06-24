@@ -1,12 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseClient } from "../../lib/supabaseClient";
 
 export default function LoginPage() {
   const router = useRouter();
+  useEffect(() => {
+    async function checkUser() {
 
+      const {
+        data: { user },
+      } =
+        await supabaseClient.auth.getUser();
+
+      if (user) {
+        router.replace("/rooms");
+      }
+    }
+
+    checkUser();
+  }, [router]);
   const [email, setEmail] =
     useState("");
 
@@ -65,8 +79,7 @@ export default function LoginPage() {
         throw error;
       }
 
-      router.push("/");
-      router.refresh();
+    router.replace("/rooms");
 
     } catch (error: unknown) {
       console.error(error);
