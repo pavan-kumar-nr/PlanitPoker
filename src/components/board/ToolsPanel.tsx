@@ -25,9 +25,14 @@ type Props = {
 
   importFromAdo: () => void;
 
-  importExcel: (
-    event: React.ChangeEvent<HTMLInputElement>
+  importExcel: () => void;
+
+  selectedExcel: File | null;
+
+  setSelectedExcel: (
+    file: File | null
   ) => void;
+
   jiraDomain: string;
 
 setJiraDomain: (
@@ -68,6 +73,8 @@ export default function ToolsPanel({
   setAdoQueryId,
   importFromAdo,
   importExcel,
+  selectedExcel,
+  setSelectedExcel,
   jiraDomain,
   setJiraDomain,
   jiraEmail,
@@ -113,7 +120,7 @@ export default function ToolsPanel({
             </h2>
 
             <p className="text-sm text-slate-400 mt-1">
-            Azure DevOps and Excel imports
+             import tickets from ADO, JIRA and Excel
             </p>
 
         </div>
@@ -160,27 +167,21 @@ export default function ToolsPanel({
                     />
 
                     <input
-                    value={
-                        adoProject
-                    }
-                    onChange={(e) =>
-                        setAdoProject(
-                        e.target.value
-                        )
-                    }
+                    value={adoProject}
+                    onChange={(e) => setAdoProject(e.target.value)}
                     placeholder="Project"
+                    autoComplete="off"
+                    name="ado-project"
                     className="w-full rounded-xl bg-white text-black p-3 mb-3"
                     />
 
                     <input
                     value={adoPat}
-                    onChange={(e) =>
-                        setAdoPat(
-                        e.target.value
-                        )
-                    }
+                    onChange={(e) => setAdoPat(e.target.value)}
                     type="password"
                     placeholder="PAT Token"
+                    autoComplete="new-password"
+                    name="ado-pat"
                     className="w-full rounded-xl bg-white text-black p-3 mb-3"
                     />
 
@@ -298,48 +299,75 @@ export default function ToolsPanel({
 
                 {/* Excel */}
                 <div>
-
-                    <h3 className="text-lg font-semibold text-white mb-4">
+                <h3 className="mb-4 text-lg font-semibold text-white">
                     Excel Import
-                    </h3>
+                </h3>
 
-                    <input
+                <a
+                    href="/templates/tickets.xlsx"
+                    download
+                    className="
+                    mb-5
+                    inline-flex
+                    w-full
+                    items-center
+                    justify-center
+                    rounded-xl
+                    bg-emerald-600
+                    px-4
+                    py-3
+                    font-semibold
+                    text-white
+                    transition
+                    hover:bg-emerald-700
+                    "
+                >
+                    Download Template
+                </a>
+
+                <input
                     type="file"
                     accept=".xlsx,.xls,.csv"
-                    onChange={
-                        importExcel
+                    onChange={(e) =>
+                    setSelectedExcel(
+                        e.target.files?.[0] ?? null
+                    )
                     }
                     className="
-                        block
-                        w-full
-                        rounded-xl
-                        bg-white
-                        p-3
-                        text-black
+                    block
+                    w-full
+                    rounded-xl
+                    bg-white
+                    p-3
+                    text-black
                     "
-                    />
+                />
 
-                    <div className="mt-6">
+                <button
+                    onClick={importExcel}
+                    disabled={!selectedExcel}
+                    className="
+                    mt-4
+                    w-full
+                    rounded-xl
+                    bg-blue-600
+                    py-3
+                    font-semibold
+                    text-white
+                    transition
+                    hover:bg-blue-700
+                    disabled:cursor-not-allowed
+                    disabled:bg-slate-600
+                    "
+                >
+                    Import Excel
+                </button>
 
-                    <a
-                        href="/templates/tickets.xlsx"
-                        download
-                        className="
-                        inline-block
-                        rounded-xl
-                        bg-emerald-600
-                        px-4
-                        py-3
-                        text-white
-                        font-semibold
-                        hover:bg-emerald-700
-                        "
-                    >
-                        Download Template
-                    </a>
-
-                    </div>
-
+                {selectedExcel && (
+                    <p className="mt-3 text-sm text-green-400">
+                    Selected: {selectedExcel.name}
+                    </p>
+                )}
                 </div>
             </div>
         </div>

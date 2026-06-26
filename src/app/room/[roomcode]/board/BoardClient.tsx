@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, } from "react";
+import { useRouter } from "next/navigation";
 
 import SessionHeader from "../../../../components/board/SessionHeader";
 import ActiveTicketPanel from "../../../../components/board/ActiveTicketPanel";
@@ -29,10 +30,12 @@ export default function BoardClient({
 }: {
   session: Session;
 }) {
-
+const router = useRouter();
 const session =
   initialSession;
-
+const [selectedExcel, setSelectedExcel] =
+  useState<File | null>(null);
+  
   const [
     activeTicket,
     setActiveTicket,
@@ -153,6 +156,12 @@ await loadActiveTicket();
     setCopied,
   ] = useState(false);
 
+  const [showCompleteDialog, setShowCompleteDialog] =
+    useState(false);
+
+  const [completing, setCompleting] =
+    useState(false);
+
   const [
     ,
     setLoading,
@@ -174,6 +183,11 @@ await loadActiveTicket();
     editEstimate,
     setEditEstimate,
   ] = useState("");
+
+const [
+  deletingFromBacklog,
+  setDeletingFromBacklog,
+] = useState(false);
 
   const [
     ticketToDelete,
@@ -544,25 +558,17 @@ EXCEL IMPORT
 --------------------------------
 */
 
-async function handleExcelImport(
-  event: React.ChangeEvent<HTMLInputElement>
-) {
-  const file =
-    event.target.files?.[0];
-
-  if (
-    !file ||
-    !session
-  ) {
+async function handleExcelImport() {
+  if (!selectedExcel || !session) {
+    alert("Please select an Excel file.");
     return;
   }
 
-  const formData =
-    new FormData();
+  const formData = new FormData();
 
   formData.append(
     "file",
-    file
+    selectedExcel
   );
 
   formData.append(
@@ -571,7 +577,7 @@ async function handleExcelImport(
   );
 
   try {
-    await fetch(
+    const response = await fetch(
       "/api/import-excel",
       {
         method: "POST",
@@ -579,10 +585,25 @@ async function handleExcelImport(
       }
     );
 
-    await loadHistory();
-await loadParticipants();
+    if (!response.ok) {
+      throw new Error(
+        "Failed to import Excel."
+      );
+    }
+
+    await Promise.all([
+      loadHistory(),
+      loadParticipants(),
+      loadBacklog(),
+      loadActiveTicket(),
+    ]);
+
+    setSelectedExcel(null);
+
+    alert("Excel imported successfully.");
   } catch (error) {
     console.error(error);
+    alert("Failed to import Excel.");
   }
 }
 
@@ -606,30 +627,58 @@ async function confirmDelete() {
   }
 
   try {
-    await fetch(
-      "/api/tickets/delete",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify({
-          ticketId:
-            ticketToDelete,
-        }),
-      }
-    );
+    const response =
+      await fetch(
+        "/api/tickets/delete",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
+          body: JSON.stringify({
+            ticketId:
+              ticketToDelete,
+          }),
+        }
+      );
 
-    setTicketToDelete(
-      null
-    );
+    if (!response.ok) {
+      throw new Error(
+        "Delete failed."
+      );
+    }
 
-    await loadHistory();
+    const deletedId =
+      ticketToDelete;
+
+    setTicketToDelete(null);
+    setDeletingFromBacklog(false);
+
+    await Promise.all([
+      loadHistory(),
+      loadBacklog(),
+      loadParticipants(),
+    ]);
+
+    if (
+      activeTicket?.id ===
+      deletedId
+    ) {
+      await loadActiveTicket();
+    }
   } catch (error) {
     console.error(error);
   }
 }
+
+function deleteBacklogTicket(
+  ticketId: string
+) {
+  setDeletingFromBacklog(true);
+  setTicketToDelete(ticketId);
+}
+
 
 /*
 --------------------------------
@@ -848,46 +897,32 @@ COMPLETE SESSION
 --------------------------------
 */
 
-async function completeSession() {
-  if (!session) {
-    return;
-  }
-
-  const confirmed =
-    window.confirm(
-      "Complete this session?"
-    );
-
-  if (!confirmed) {
-    return;
-  }
+async function confirmCompleteSession() {
+  if (!session) return;
 
   try {
+    setCompleting(true);
 
-    await fetch(
-      "/api/sessions/complete",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
-        body: JSON.stringify({
-          sessionId:
-            session.id,
-        }),
-      }
-    );
+    await fetch("/api/sessions/complete", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sessionId: session.id,
+      }),
+    });
 
-    setSessionCompleted(
-      true
-    );
+    setSessionCompleted(true);
+    setShowCompleteDialog(false);
 
+    router.push("/rooms");
   } catch (error) {
     console.error(error);
+  } finally {
+    setCompleting(false);
   }
 }
-
 /*
 --------------------------------
 EXPORT EXCEL
@@ -975,13 +1010,56 @@ return (
         onExport={exportResults}
         onPdf={downloadPdf}
         onSummary={openSummary}
-        onCompleteSession={completeSession}
+        onCompleteSession={() =>
+          setShowCompleteDialog(true)
+        }
         sessionCompleted={sessionCompleted}
         isCreator={isCreator}
       />
+      {showCompleteDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+            <div className="w-full max-w-md rounded-2xl border border-white bg-slate-800 p-6 shadow-2xl">
 
-      {/* Tools */}
+              <h2 className="text-2xl font-bold text-white">
+                Complete Session
+              </h2>
 
+              <p className="mt-4 text-slate-300">
+                Are you sure you want to complete this session?
+              </p>
+
+              <p className="mt-2 text-sm text-yellow-400">
+                This action cannot be undone. The room will be closed,
+                voting will stop, and all participants will leave the
+                session.
+              </p>
+
+              <div className="mt-8 flex justify-end gap-3">
+                <button
+                  onClick={() =>
+                    setShowCompleteDialog(false)
+                  }
+                  disabled={completing}
+                  className="rounded-xl border border-slate-600 px-5 py-2 text-white hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={confirmCompleteSession}
+                  disabled={completing}
+                  className="rounded-xl bg-red-600 px-5 py-2 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {completing
+                    ? "Completing..."
+                    : "Complete Session"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {/* Tools & Integrations */}
       {isCreator && (
         <ToolsPanel
           adoOrganization={
@@ -1009,9 +1087,9 @@ return (
           importFromAdo={
             importFromAdo
           }
-          importExcel={
-            handleExcelImport
-          }
+          selectedExcel={selectedExcel}
+          setSelectedExcel={setSelectedExcel}
+          importExcel={handleExcelImport}
           jiraDomain={jiraDomain}
           setJiraDomain={
             setJiraDomain
@@ -1060,8 +1138,9 @@ return (
               (t) => !t.final_estimate
             )}
             activeTicketId={activeTicket?.id}
-            isCreator={isCreator}
             onSelect={selectTicket}
+            onDelete={deleteBacklogTicket}
+            isCreator={isCreator}
           />
 
         </div>
@@ -1119,6 +1198,7 @@ return (
 
         <TicketHistoryPanel
           history={history}
+          isCreator={isCreator}
           deleteTicket={
             handleDelete
           }
@@ -1132,17 +1212,24 @@ return (
       {/* Delete Modal */}
 
       <DeleteTicketModal
-        isOpen={Boolean(
-          ticketToDelete
-        )}
-        onClose={() =>
-          setTicketToDelete(
-            null
-          )
+        isOpen={Boolean(ticketToDelete)}
+        title={
+          deletingFromBacklog
+            ? "Delete Backlog Ticket"
+            : "Delete Ticket"
         }
-        onConfirm={
-          confirmDelete
+        message={
+          deletingFromBacklog
+            ? "Are you sure you want to remove this ticket from the sprint backlog? This action cannot be undone."
+            : "Are you sure you want to delete this completed ticket? This action cannot be undone."
         }
+        confirmText="Delete"
+        cancelText="Cancel"
+        onClose={() => {
+          setTicketToDelete(null);
+          setDeletingFromBacklog(false);
+        }}
+        onConfirm={confirmDelete}
       />
 
       {/* Edit Modal */}
@@ -1166,6 +1253,7 @@ return (
           saveEstimate
         }
       />
+
       </div>
   </main>
   

@@ -1,5 +1,19 @@
 import { supabase } from "../../../../../lib/supabase";
-import PDFDocument from "pdfkit";
+import {
+  PDFDocument,
+  StandardFonts,
+  rgb,
+} from "pdf-lib";
+
+export const runtime = "nodejs";
+
+type VoteRecord = {
+  vote_value: string;
+  comment: string | null;
+  participants?: {
+    name: string;
+  }[];
+};
 
 export async function GET(
   request: Request,
@@ -14,6 +28,7 @@ export async function GET(
 
   const {
     data: tickets,
+    error,
   } = await supabase
     .from("tickets")
     .select("*")
@@ -26,124 +41,234 @@ export async function GET(
       true
     );
 
-  const doc =
-    new PDFDocument();
-
-  const chunks: Buffer[] =
-    [];
-
-doc.on(
-  "data",
-  (chunk: Buffer) =>
-    chunks.push(chunk)
-);
-
-  const endPromise =
-    new Promise<Buffer>(
-      (resolve) => {
-        doc.on(
-          "end",
-          () =>
-            resolve(
-              Buffer.concat(
-                chunks
-              )
-            )
-        );
+  if (error) {
+    return Response.json(
+      {
+        error:
+          error.message,
+      },
+      {
+        status: 500,
       }
     );
+  }
 
-type VoteRecord = {
-  vote_value: string;
-  comment: string | null;
-  participants?: {
-    name: string;
-  }[];
-};
+  const pdf =
+    await PDFDocument.create();
 
-  doc.fontSize(24);
-  doc.text(
-    "Planit Poker Session Report"
+  let page =
+    pdf.addPage([595, 842]);
+
+  const regular =
+    await pdf.embedFont(
+      StandardFonts.Helvetica
+    );
+
+  const bold =
+    await pdf.embedFont(
+      StandardFonts.HelveticaBold
+    );
+
+  const pageWidth =
+    page.getWidth();
+
+  const pageHeight =
+    page.getHeight();
+
+  let y =
+    pageHeight - 50;
+
+  function ensureSpace(
+    lines = 3
+  ) {
+    if (
+      y <
+      60 + lines * 18
+    ) {
+      page =
+        pdf.addPage([
+          595,
+          842,
+        ]);
+
+      y =
+        page.getHeight() -
+        50;
+    }
+  }
+
+  function write(
+    text: string,
+    size = 12,
+    isBold = false
+  ) {
+    ensureSpace();
+
+    page.drawText(text, {
+      x: 50,
+      y,
+      size,
+      font: isBold
+        ? bold
+        : regular,
+      color: rgb(
+        0,
+        0,
+        0
+      ),
+    });
+
+    y -= size + 8;
+  }
+
+  function divider() {
+    ensureSpace();
+
+    page.drawLine({
+      start: {
+        x: 50,
+        y,
+      },
+      end: {
+        x:
+          pageWidth - 50,
+        y,
+      },
+      thickness: 1,
+      color: rgb(
+        0.8,
+        0.8,
+        0.8
+      ),
+    });
+
+    y -= 20;
+  }
+
+  write(
+    "Planit Poker Session Report",
+    22,
+    true
   );
 
-  doc.moveDown();
+  write(
+    `Generated: ${new Date().toLocaleString()}`
+  );
 
-  for (const ticket of tickets || []) {
-    doc.fontSize(16);
+  y -= 15;
 
-    doc.text(
-      `${ticket.ticket_key} - ${ticket.title}`
+  if (
+    !tickets ||
+    tickets.length === 0
+  ) {
+    write(
+      "No completed tickets found."
+    );
+  }
+
+  for (const ticket of tickets ??
+    []) {
+    ensureSpace(8);
+
+    write(
+      `${ticket.ticket_key ?? "-"} - ${ticket.title}`,
+      16,
+      true
     );
 
-    doc.fontSize(12);
-
-    doc.text(
-      `Final Estimate: ${ticket.final_estimate ?? "-"}`
+    write(
+      `Final Estimate: ${
+        ticket.final_estimate ??
+        "-"
+      }`
     );
 
-    doc.text(
-      `Final Comment: ${ticket.final_comment ?? "-"}`
+    write(
+      `Final Comment: ${
+        ticket.final_comment ??
+        "-"
+      }`
+    );
+
+    write(
+      "Votes:",
+      13,
+      true
     );
 
     const {
       data: votes,
-    } = await supabase
-      .from("votes")
-      .select(`
-        vote_value,
-        comment,
-        participants (
-          name
+    } =
+      await supabase
+        .from("votes")
+        .select(
+          `
+          vote_value,
+          comment,
+          participants (
+            name
+          )
+        `
         )
-      `)
-      .eq(
-        "ticket_id",
-        ticket.id
-      );
-
-    doc.moveDown();
-
-    votes?.forEach(
-      (vote: VoteRecord) => {
-        doc.text(
-          `${vote.participants?.[0].name ?? ""} | Vote: ${vote.vote_value}`
+        .eq(
+          "ticket_id",
+          ticket.id
         );
 
-        if (
-          vote.comment
-        ) {
-          doc.text(
-            `Comment: ${vote.comment}`
+    if (
+      votes &&
+      votes.length > 0
+    ) {
+      votes.forEach(
+        (
+          vote: VoteRecord
+        ) => {
+          ensureSpace(3);
+
+          write(
+            `• ${
+              vote
+                .participants?.[0]
+                ?.name ??
+              "Unknown"
+            }  —  Vote: ${
+              vote.vote_value
+            }`
           );
+
+          if (
+            vote.comment
+          ) {
+            write(
+              `   Comment: ${vote.comment}`,
+              11
+            );
+          }
         }
+      );
+    } else {
+      write(
+        "No votes recorded."
+      );
+    }
 
-        doc.moveDown(
-          0.5
-        );
-      }
-    );
-
-    doc.moveDown();
-    doc.moveDown();
+    divider();
   }
 
-  doc.end();
+  const pdfBytes =
+    await pdf.save();
 
-  const buffer =
-    await endPromise;
-
-return new Response(
-  new Uint8Array(
-    buffer
-  ),
-  {
-    headers: {
-      "Content-Type":
-        "application/pdf",
-
-      "Content-Disposition":
-        'attachment; filename="SessionReport.pdf"',
-    },
-  }
-);
+  return new Response(
+    Buffer.from(
+      pdfBytes
+    ),
+    {
+      headers: {
+        "Content-Type":
+          "application/pdf",
+        "Content-Disposition":
+          'attachment; filename="SessionReport.pdf"',
+      },
+    }
+  );
 }

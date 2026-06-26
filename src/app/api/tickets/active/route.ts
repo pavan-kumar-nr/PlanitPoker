@@ -69,12 +69,7 @@ export async function GET(
     .single();
 
   console.log(
-    "TICKET RESULT",
-    ticket
-  );
-
-  console.log(
-    "TICKET ERROR",
+    "TICKET ERROR: ",
     ticketError
   );
 

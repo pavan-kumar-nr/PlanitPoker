@@ -1,20 +1,17 @@
-import PDFDocument from "pdfkit";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { supabase } from "../../../../lib/supabase";
 
-export async function GET(
-  request: Request
-) {
-  const { searchParams } =
-    new URL(request.url);
+export const runtime = "nodejs";
 
-  const sessionId =
-    searchParams.get("sessionId");
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+
+  const sessionId = searchParams.get("sessionId");
 
   if (!sessionId) {
     return Response.json(
       {
-        error:
-          "Session Id missing",
+        error: "Session Id missing",
       },
       {
         status: 400,
@@ -22,168 +19,178 @@ export async function GET(
     );
   }
 
-  const {
-    data: session,
-  } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq(
-      "id",
-      sessionId
-    )
-    .single();
+  const { data: session, error: sessionError } =
+    await supabase
+      .from("sessions")
+      .select("*")
+      .eq("id", sessionId)
+      .single();
 
-  const {
-    data: tickets,
-  } = await supabase
-    .from("tickets")
-    .select("*")
-    .eq(
-      "session_id",
-      sessionId
-    )
-    .eq(
-      "completed",
-      true
-    )
-    .order(
-      "created_at",
+  if (sessionError) {
+    return Response.json(
       {
-        ascending: true,
+        error: sessionError.message,
+      },
+      {
+        status: 500,
       }
     );
+  }
 
-  const doc =
-    new PDFDocument({
-      margin: 40,
-      size: "A4",
+  const { data: tickets, error: ticketError } =
+    await supabase
+      .from("tickets")
+      .select("*")
+      .eq("session_id", sessionId)
+      .eq("completed", true)
+      .order("created_at", {
+        ascending: true,
+      });
+
+  if (ticketError) {
+    return Response.json(
+      {
+        error: ticketError.message,
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+
+  const pdf = await PDFDocument.create();
+
+  let page = pdf.addPage([595, 842]);
+
+  const font =
+    await pdf.embedFont(StandardFonts.Helvetica);
+
+  const bold =
+    await pdf.embedFont(
+      StandardFonts.HelveticaBold
+    );
+
+  const pageWidth = page.getWidth();
+  const pageHeight = page.getHeight();
+
+  let y = pageHeight - 50;
+
+  const left = 50;
+
+  const drawText = (
+    text: string,
+    size = 12,
+    isBold = false
+  ) => {
+    if (y < 60) {
+      page = pdf.addPage([595, 842]);
+      y = pageHeight - 50;
+    }
+
+    page.drawText(text, {
+      x: left,
+      y,
+      size,
+      font: isBold ? bold : font,
+      color: rgb(0, 0, 0),
     });
 
-  const chunks: Buffer[] = [];
+    y -= size + 8;
+  };
 
-  doc.on(
-    "data",
-    (chunk) => {
-      chunks.push(chunk);
-    }
+  const drawLine = () => {
+    page.drawLine({
+      start: {
+        x: left,
+        y,
+      },
+      end: {
+        x: pageWidth - 50,
+        y,
+      },
+      thickness: 1,
+      color: rgb(0.8, 0.8, 0.8),
+    });
+
+    y -= 15;
+  };
+
+  page.drawText("Planit Poker Report", {
+    x: 150,
+    y,
+    size: 24,
+    font: bold,
+    color: rgb(0.15, 0.15, 0.65),
+  });
+
+  y -= 40;
+
+  drawText(
+    `Session: ${session?.name ?? ""}`,
+    14,
+    true
   );
 
-  const pdfPromise =
-    new Promise<Buffer>(
-      (resolve) => {
-        doc.on(
-          "end",
-          () => {
-            resolve(
-              Buffer.concat(
-                chunks
-              )
-            );
-          }
-        );
-      }
-    );
-
-  /*
-  Header
-  */
-
-  doc
-    .fontSize(24)
-    .text(
-      "Planit Poker Report",
-      {
-        align:
-          "center",
-      }
-    );
-
-  doc.moveDown();
-
-  doc
-    .fontSize(14)
-    .text(
-      `Session: ${session?.name ?? ""}`
-    );
-
-  doc.text(
-    `Room Code: ${session?.room_code ?? ""}`
+  drawText(
+    `Room Code: ${
+      session?.room_code ?? ""
+    }`
   );
 
-  doc.text(
+  drawText(
     `Generated: ${new Date().toLocaleString()}`
   );
 
-  doc.moveDown(2);
+  y -= 10;
 
-  /*
-  Tickets
-  */
-
-  tickets?.forEach(
-    (
-      ticket,
-      index
-    ) => {
-
-      doc
-        .fontSize(16)
-        .text(
-          `${index + 1}. ${ticket.ticket_key}`
+  if (!tickets || tickets.length === 0) {
+    drawText(
+      "No completed tickets found.",
+      13
+    );
+  } else {
+    tickets.forEach(
+      (ticket, index) => {
+        drawText(
+          `${index + 1}. ${
+            ticket.ticket_key
+          }`,
+          15,
+          true
         );
 
-      doc
-        .fontSize(12)
-        .text(
-          `Title: ${ticket.title}`
+        drawText(
+          `Title: ${
+            ticket.title ?? "-"
+          }`
         );
 
-      doc.text(
-        `Estimate: ${
-          ticket.final_estimate ??
-          "-"
-        }`
-      );
+        drawText(
+          `Estimate: ${
+            ticket.final_estimate ??
+            "-"
+          }`
+        );
 
-      doc.text(
-        `Comment: ${
-          ticket.final_comment ??
-          "-"
-        }`
-      );
+        drawText(
+          `Comment: ${
+            ticket.final_comment ??
+            "-"
+          }`
+        );
 
-      doc.moveDown();
+        drawLine();
+      }
+    );
+  }
 
-      doc
-        .moveTo(
-          40,
-          doc.y
-        )
-        .lineTo(
-          550,
-          doc.y
-        )
-        .stroke();
+  const pdfBytes = await pdf.save();
 
-      doc.moveDown();
-    }
-  );
-
-  doc.end();
-
-const pdfBuffer =
-  await pdfPromise;
-
-return new Response(
-  new Uint8Array(pdfBuffer),
-  {
+  return new Response(pdfBytes.buffer as ArrayBuffer, {
     headers: {
-      "Content-Type":
-        "application/pdf",
-
+      "Content-Type": "application/pdf",
       "Content-Disposition":
         'attachment; filename="SprintReport.pdf"',
     },
-  }
-);
+  });
 }
