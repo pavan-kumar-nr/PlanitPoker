@@ -1,5 +1,5 @@
 "use client";
-import { Copy, Home } from "lucide-react";
+import { Copy, } from "lucide-react";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -110,7 +110,7 @@ useEffect(() => {
   }
 
   checkSession();
-}, []);
+}, [router]);
 
 async function createSession() {
 
@@ -226,7 +226,7 @@ function joinRoom() {
                 Planit Poker
             </h1>
 
-            <p className="text-blue-100 text-sm mt-1">
+            <p className="text-blue-100 text-md mt-1">
                 Real-time agile estimation for your team
             </p>
           </div>
@@ -371,7 +371,7 @@ function joinRoom() {
               </div>
             </div>
 
-      <div className="my-15 border-t border-black" />
+      <div className="my-10 border-t border-black" />
 
         {/* SESSION HISTORY */}
 

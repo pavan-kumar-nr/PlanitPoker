@@ -14,12 +14,14 @@ type Props = {
   editEstimate: (
     ticket: Ticket
   ) => void;
+   isCreator: boolean;
 };
 
 export default function TicketHistoryPanel({
   history,
   deleteTicket,
   editEstimate,
+  isCreator,
 }: Props) {
   return (
     <div className="rounded-3xl border border-slate-700 bg-slate-800 p-6">
@@ -27,7 +29,7 @@ export default function TicketHistoryPanel({
       <h2 className="text-xl font-bold text-white mb-6">
         Ticket History
       </h2>
-
+      <div className="my-4 h-px w-full bg-slate-700" />
       {history.length === 0 ? (
         <div className="text-slate-400">
           No completed tickets
@@ -50,71 +52,70 @@ export default function TicketHistoryPanel({
                 <div className="flex justify-between items-start">
 
                   <div>
-
                     <div className="text-lg font-bold text-white">
                       {
                         ticket.ticket_key
                       }
                     </div>
-
                     <div className="text-slate-300">
                       {ticket.title}
                     </div>
-
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex gap-5">
+                  <div className="">
+                    <span className="text-slate-400">
+                      Estimate:
+                    </span>
+                    <span className="ml-2 font-bold text-emerald-400">
+                      {ticket.final_estimate ??
+                        "-"}
+                    </span>
+                  </div>
 
-                    <button
-                      onClick={() =>
-                        editEstimate(
-                          ticket
-                        )
-                      }
-                      className="
-                        rounded-lg
-                        bg-indigo-600
-                        p-2
-                        text-white
-                        hover:bg-indigo-700
-                      "
-                    >
-                      <FiEdit2 />
-                    </button>
+                  {isCreator && (
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          editEstimate(ticket)
+                        }
+                        className="
+                          rounded-lg
+                          bg-indigo-600
+                          p-2
+                          text-white
+                          transition
+                          hover:bg-indigo-700
+                        "
+                        title="Edit Estimate"
+                      >
+                        <FiEdit2 />
+                      </button>
 
-                    <button
-                      onClick={() =>
-                        deleteTicket(
-                          ticket.id
-                        )
-                      }
-                      className="
-                        rounded-lg
-                        bg-red-600
-                        p-2
-                        text-white
-                        hover:bg-red-700
-                      "
-                    >
-                      <FiTrash2 />
-                    </button>
+                      <button
+                        onClick={() =>
+                          deleteTicket(ticket.id)
+                        }
+                        className="
+                          rounded-lg
+                          bg-red-600
+                          p-2
+                          text-white
+                          transition
+                          hover:bg-red-700
+                        "
+                        title="Delete Ticket"
+                      >
+                        <FiTrash2 />
+                      </button>
+                    </div>
+                  )}
+                  
 
                   </div>
 
                 </div>
 
-                <div className="mt-4">
-
-                  <span className="text-slate-400">
-                    Estimate:
-                  </span>
-
-                  <span className="ml-2 font-bold text-emerald-400">
-                    {ticket.final_estimate ??
-                      "-"}
-                  </span>
-
-                </div>
 
                 {ticket.final_comment && (
                   <div className="mt-3 rounded-xl bg-slate-800 p-3">

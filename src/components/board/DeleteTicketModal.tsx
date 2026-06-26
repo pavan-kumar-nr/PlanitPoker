@@ -2,12 +2,26 @@
 
 type Props = {
   isOpen: boolean;
+
+  title?: string;
+
+  message?: string;
+
+  confirmText?: string;
+
+  cancelText?: string;
+
   onClose: () => void;
+
   onConfirm: () => void;
 };
 
 export default function DeleteTicketModal({
   isOpen,
+  title = "Delete Ticket",
+  message = "Are you sure you want to delete this ticket? This action cannot be undone.",
+  confirmText = "Delete",
+  cancelText = "Cancel",
   onClose,
   onConfirm,
 }: Props) {
@@ -33,32 +47,37 @@ export default function DeleteTicketModal({
           w-full
           max-w-md
           rounded-3xl
-          bg-white
+          border
+          border-slate-700
+          bg-slate-800
           p-6
           shadow-2xl
         "
       >
-        <h2 className="text-2xl font-bold text-black mb-3">
-          Delete Ticket
+        <h2 className="mb-3 text-2xl font-bold text-white">
+          {title}
         </h2>
 
-        <p className="text-slate-600 mb-6">
-          Are you sure you want to delete this ticket?
+        <p className="mb-6 leading-7 text-slate-300">
+          {message}
         </p>
 
         <div className="flex justify-end gap-3">
-
           <button
             onClick={onClose}
             className="
               rounded-xl
-              bg-slate-200
-              px-4
+              border
+              border-slate-600
+              px-5
               py-2
               font-medium
+              text-white
+              transition
+              hover:bg-slate-700
             "
           >
-            Cancel
+            {cancelText}
           </button>
 
           <button
@@ -66,16 +85,16 @@ export default function DeleteTicketModal({
             className="
               rounded-xl
               bg-red-600
-              px-4
+              px-5
               py-2
               font-medium
               text-white
+              transition
               hover:bg-red-700
             "
           >
-            Delete
+            {confirmText}
           </button>
-
         </div>
       </div>
     </div>
